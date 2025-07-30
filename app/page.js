@@ -86,7 +86,7 @@ export default function OtpLoginPage() {
   return (
     <div className={`h-screen w-full flex items-center justify-center 
    ${theme ? "bg-white text-black" : "bg-black text-white"}`}>
-    <div className="max-w-sm mx-auto mt-10 p-4 border rounded shadow">
+    <div className="w-full sm:w-[40vw] md:w-[45vw] lg:w-[60vw] mx-auto mt-10 p-4 border rounded shadow">
       {!otpSent ? (
         <form onSubmit={handleSubmit(sendOtp)} className="space-y-4">
           <div>
