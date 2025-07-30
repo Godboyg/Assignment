@@ -5,9 +5,9 @@ import "react-toastify/dist/ReactToastify.css";
 import { useSelector } from "react-redux";
 import Link from 'next/link';
 
-export default function ChatroomManager() {
+function ChatroomManager() {
 
-    const theme = useSelector((state) => state.user.theme);
+  const theme = useSelector((state) => state.user.theme);
 
   const [chatrooms, setChatrooms] = useState([
     { id: 1, name: "General" },
@@ -99,3 +99,5 @@ export default function ChatroomManager() {
     </div>
   );
 }
+
+export default ChatroomManager;

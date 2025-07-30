@@ -1,3 +1,4 @@
+
 "use client"
 import React, { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -6,23 +7,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useSelector , useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { toggleAuthenticated } from "./Redux/Slice";
+import axios from "axios";
 
 const phoneSchema = z.object({
-  phone: z.string().min(4, "Must be a valid number"),
-  dialCode: z.string().min(1, "Select a country"),
+  countryCode: z.string().nonempty("Select country code"),
+  phone: z.string().min(6, "Phone number too short"),
 });
 
-const otpSchema = z.object({
-  otp: z.string().length(6, "OTP must be 6 digits"),
-});
-
-const generateOTP = () =>
-  Math.floor(100000 + Math.random() * 900000).toString();
-
-export default function OtpLoginForm() {
-  const [step, setStep] = useState(1);
-  const [generatedOtp, setGeneratedOtp] = useState("");
-  const [fullPhone, setFullPhone] = useState("");
+export default function OtpLoginPage() {
+  const [otpSent, setOtpSent] = useState(false);
+  const [otp, setOtp] = useState("");
+  const [generatedOtp, setGeneratedOtp] = useState(null);
   const [countries, setCountries] = useState([]);
   const router = useRouter();
 
@@ -31,112 +26,90 @@ export default function OtpLoginForm() {
   const theme = useSelector((state) => state.user.theme);
   console.log("theme",theme);
   // console.log("user",auth);
-  
-  if(auth){
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { countryCode: "", phone: "" },
+  });
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await axios.get("https://restcountries.com/v3.1/all?fields=idd,name");
+        const countryCodes = res.data
+          .filter(c => c.idd?.root && c.idd?.suffixes)
+          .map(c => ({
+            name: c.name.common,
+            dialCode: c.idd.root + c.idd.suffixes[0],
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
+        setCountries(countryCodes);
+      } catch (error) {
+        console.error("Failed to load countries:", error);
+      }
+    };
+    fetchCountries();
+  }, []);
+
+   if(auth){
     const confirm = window.confirm("user logged in enter dashboard!!");
     if(!confirm) return;
     router.push("/dashboard");
   }
 
-  useEffect(() => {
-    const fetchCountries = async () => {
-      try {
-        const res = await fetch("https://restcountries.com/v3.1/all?fields=name,idd");
-        const data = await res.json();
-
-        const formatted = data
-         .filter(c => c.idd?.root && Array.isArray(c.idd.suffixes) && c.idd.suffixes.length > 0)
-         .map(c => ({
-          name: c.name.common,
-          code: c.idd.root + c.idd.suffixes[0], 
-         }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-
-        setCountries(formatted);
-      } catch (e) {
-        console.error("Failed to fetch countries:", e);
-      }
-    };
-
-    fetchCountries();
-  }, []);
-
-  const {
-    register: registerPhone,
-    handleSubmit: handlePhoneSubmit,
-    formState: { errors: phoneErrors },
-  } = useForm({
-    resolver: zodResolver(phoneSchema),
-  });
-
-  const {
-    register: registerOtp,
-    handleSubmit: handleOtpSubmit,
-    formState: { errors: otpErrors },
-  } = useForm({
-    resolver: zodResolver(otpSchema),
-  });
-
-  const onSendOtp = ({ phone, dialCode }) => {
-    const full = dialCode + phone;
-    const otp = generateOTP();
-    setGeneratedOtp(otp);
-    setFullPhone(full);
-
-    console.log(`📤 Sending OTP to ${full}: ${otp}`);
-
+  const sendOtp = (data) => {
+    const fakeOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(fakeOtp);
+    setOtpSent(true);
     setTimeout(() => {
-      alert(`OTP sent to ${full}: ${otp}`);
-      setStep(2);
+      alert(`Simulated OTP sent: ${fakeOtp}`); // simulate sending
     }, 1000);
   };
 
-  const onVerifyOtp = ({ otp }) => {
+  const verifyOtp = () => {
     if (otp === generatedOtp) {
-      alert(`✅ OTP verified for ${fullPhone}`);
+      alert("OTP Verified!");
       dispatch(toggleAuthenticated());
-      setStep(1);
     } else {
-      alert("❌ Invalid OTP");
+      alert("Incorrect OTP.");
     }
   };
 
   return (
-   <div className={`h-screen w-full flex items-center justify-center 
+    <div className={`h-screen w-full flex items-center justify-center 
    ${theme ? "bg-white text-black" : "bg-black text-white"}`}>
-      <div className="w-full sm:w-[42vw] md:w-[40vw] lg:w-[35vw] xl:w-[30vw] p-6 border rounded space-y-4 shadow">
-      {step === 1 && (
-        <form onSubmit={handlePhoneSubmit(onSendOtp)} className="space-y-4">
-          <h2 className="text-xl font-semibold">📱 Phone Number</h2>
-
+    <div className="max-w-sm mx-auto mt-10 p-4 border rounded shadow">
+      {!otpSent ? (
+        <form onSubmit={handleSubmit(sendOtp)} className="space-y-4">
           <div>
-            <label className="block mb-1">Country</label>
-            <select
-              {...registerPhone("dialCode")}
-              className="w-full border p-2 rounded"
-            >
-              <option value="">Select Country</option>
-              {countries.map((c, i) => (
-                <option key={i} value={c.code} className={`${theme ? "text-black" : "bg-black text-white"}`}>
-                  {c.name} ({c.code})
+            <label className="block mb-1 font-medium">Country Code</label>
+            <select {...register("countryCode")} className="w-full border p-2 rounded">
+              <option value="">Select</option>
+              {countries.map((c) => (
+                <option key={c.dialCode} value={c.dialCode}>
+                  {c.name} ({c.dialCode})
                 </option>
               ))}
             </select>
-            {phoneErrors.dialCode && (
-              <p className="text-red-500 text-sm">{phoneErrors.dialCode.message}</p>
+            {errors.countryCode && (
+              <p className="text-red-500 text-sm">{errors.countryCode.message}</p>
             )}
           </div>
 
           <div>
-            <label className="block mb-1">Phone Number</label>
+            <label className="block mb-1 font-medium">Phone Number</label>
             <input
-              type="text"
-              placeholder="1234567890"
-              {...registerPhone("phone")}
-              className="w-full border rounded p-2"
+              type="tel"
+              {...register("phone")}
+              className="w-full border p-2 rounded"
+              placeholder="Enter phone number"
             />
-            {phoneErrors.phone && (
-              <p className="text-red-500 text-sm">{phoneErrors.phone.message}</p>
+            {errors.phone && (
+              <p className="text-red-500 text-sm">{errors.phone.message}</p>
             )}
           </div>
 
@@ -144,31 +117,25 @@ export default function OtpLoginForm() {
             Send OTP
           </button>
         </form>
-      )}
-
-      {step === 2 && (
-        <form onSubmit={handleOtpSubmit(onVerifyOtp)} className="space-y-4">
-          <h2 className="text-xl font-semibold">🔐 Enter OTP</h2>
-          <p className="text-sm text-gray-600">Sent to {fullPhone}</p>
-
-          <div>
-            <input
-              type="text"
-              placeholder="Enter 6-digit OTP"
-              {...registerOtp("otp")}
-              className="w-full border rounded p-2"
-            />
-            {otpErrors.otp && (
-              <p className="text-red-500 text-sm">{otpErrors.otp.message}</p>
-            )}
-          </div>
-
-          <button type="submit" className="w-full bg-green-600 text-white py-2 rounded">
+      ) : (
+        <div className="space-y-4">
+          <label className="block mb-1 font-medium">Enter OTP</label>
+          <input
+            type="text"
+            value={otp}
+            onChange={(e) => setOtp(e.target.value)}
+            className="w-full border p-2 rounded"
+            placeholder="6-digit OTP"
+          />
+          <button
+            onClick={verifyOtp}
+            className="w-full bg-green-600 text-white py-2 rounded"
+          >
             Verify OTP
           </button>
-        </form>
+        </div>
       )}
     </div>
-   </div>
+    </div>
   );
 }
