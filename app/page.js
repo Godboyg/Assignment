@@ -57,8 +57,11 @@ export default function OtpLoginPage() {
 
    if(auth){
     const confirm = window.confirm("user logged in enter dashboard!!");
-    if(!confirm) return;
-    router.push("/dashboard");
+    if(confirm){
+     router.push("/dashboard"); 
+    } else {
+      return;
+    }
   }
 
   const sendOtp = (data) => {
