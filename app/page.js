@@ -56,7 +56,8 @@ export default function OtpLoginPage() {
     fetchCountries();
   }, []);
 
-   if(auth){
+  useEffect(() =>{
+    if(auth){
     const confirm = window.confirm("user logged in enter dashboard!!");
     if(confirm){
      router.push("/dashboard"); 
@@ -64,6 +65,7 @@ export default function OtpLoginPage() {
       return;
     }
   }
+  },[])
 
   const sendOtp = (data) => {
     const fakeOtp = Math.floor(100000 + Math.random() * 900000).toString();
