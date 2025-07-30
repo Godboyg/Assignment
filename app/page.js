@@ -88,12 +88,12 @@ export default function OtpLoginPage() {
   return (
     <div className={`h-screen w-full flex items-center justify-center 
    ${theme ? "bg-white text-black" : "bg-black text-white"}`}>
-    <div className="w-full sm:w-[34vw] md:w-[40vw] lg:w-[50vw] mx-auto mt-10 p-4 border rounded shadow">
+    <div className="w-full sm:w-[30vw] md:w-[35vw] lg:w-[40vw] mx-auto mt-10 p-4 border rounded shadow">
       {!otpSent ? (
         <form onSubmit={handleSubmit(sendOtp)} className="space-y-4">
           <div>
             <label className="block mb-1 font-medium">Country Code</label>
-            <select {...register("countryCode")} className="w-full border p-2 rounded">
+            <select {...register("countryCode")} className={`w-full border p-2 rounded ${theme ? "bg-white text-black" : "bg-black text-white"}`}>
               <option value="">Select</option>
               {countries.map((c) => (
                 <option key={c.dialCode} value={c.dialCode}>
