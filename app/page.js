@@ -47,6 +47,7 @@ export default function OtpLoginPage() {
             dialCode: c.idd.root + c.idd.suffixes[0],
           }))
           .sort((a, b) => a.name.localeCompare(b.name));
+        console.log("codes",countryCodes);
         setCountries(countryCodes);
       } catch (error) {
         console.error("Failed to load countries:", error);
