@@ -1,103 +1,174 @@
-import Image from "next/image";
+"use client"
+import React, { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useSelector , useDispatch } from "react-redux";
+import { useRouter } from "next/navigation";
+import { toggleAuthenticated } from "./Redux/Slice";
 
-export default function Home() {
+const phoneSchema = z.object({
+  phone: z.string().min(4, "Must be a valid number"),
+  dialCode: z.string().min(1, "Select a country"),
+});
+
+const otpSchema = z.object({
+  otp: z.string().length(6, "OTP must be 6 digits"),
+});
+
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+export default function OtpLoginForm() {
+  const [step, setStep] = useState(1);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [fullPhone, setFullPhone] = useState("");
+  const [countries, setCountries] = useState([]);
+  const router = useRouter();
+
+  const dispatch = useDispatch();
+  const auth = useSelector((state) => state.user.isAuthenticated);
+  const theme = useSelector((state) => state.user.theme);
+  console.log("theme",theme);
+  // console.log("user",auth);
+  
+  if(auth){
+    const confirm = window.confirm("user logged in enter dashboard!!");
+    if(!confirm) return;
+    router.push("/dashboard");
+  }
+
+  useEffect(() => {
+    const fetchCountries = async () => {
+      try {
+        const res = await fetch("https://restcountries.com/v3.1/all?fields=name,idd");
+        const data = await res.json();
+
+        const formatted = data
+         .filter(c => c.idd?.root && Array.isArray(c.idd.suffixes) && c.idd.suffixes.length > 0)
+         .map(c => ({
+          name: c.name.common,
+          code: c.idd.root + c.idd.suffixes[0], 
+         }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+        setCountries(formatted);
+      } catch (e) {
+        console.error("Failed to fetch countries:", e);
+      }
+    };
+
+    fetchCountries();
+  }, []);
+
+  const {
+    register: registerPhone,
+    handleSubmit: handlePhoneSubmit,
+    formState: { errors: phoneErrors },
+  } = useForm({
+    resolver: zodResolver(phoneSchema),
+  });
+
+  const {
+    register: registerOtp,
+    handleSubmit: handleOtpSubmit,
+    formState: { errors: otpErrors },
+  } = useForm({
+    resolver: zodResolver(otpSchema),
+  });
+
+  const onSendOtp = ({ phone, dialCode }) => {
+    const full = dialCode + phone;
+    const otp = generateOTP();
+    setGeneratedOtp(otp);
+    setFullPhone(full);
+
+    console.log(`📤 Sending OTP to ${full}: ${otp}`);
+
+    setTimeout(() => {
+      alert(`OTP sent to ${full}: ${otp}`);
+      setStep(2);
+    }, 1000);
+  };
+
+  const onVerifyOtp = ({ otp }) => {
+    if (otp === generatedOtp) {
+      alert(`✅ OTP verified for ${fullPhone}`);
+      dispatch(toggleAuthenticated());
+      setStep(1);
+    } else {
+      alert("❌ Invalid OTP");
+    }
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+   <div className={`h-screen w-full flex items-center justify-center 
+   ${theme ? "bg-white text-black" : "bg-black text-white"}`}>
+      <div className="w-full sm:w-[42vw] md:w-[40vw] lg:w-[35vw] xl:w-[30vw] p-6 border rounded space-y-4 shadow">
+      {step === 1 && (
+        <form onSubmit={handlePhoneSubmit(onSendOtp)} className="space-y-4">
+          <h2 className="text-xl font-semibold">📱 Phone Number</h2>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+          <div>
+            <label className="block mb-1">Country</label>
+            <select
+              {...registerPhone("dialCode")}
+              className="w-full border p-2 rounded"
+            >
+              <option value="">Select Country</option>
+              {countries.map((c, i) => (
+                <option key={i} value={c.code} className={`${theme ? "text-black" : "bg-black text-white"}`}>
+                  {c.name} ({c.code})
+                </option>
+              ))}
+            </select>
+            {phoneErrors.dialCode && (
+              <p className="text-red-500 text-sm">{phoneErrors.dialCode.message}</p>
+            )}
+          </div>
+
+          <div>
+            <label className="block mb-1">Phone Number</label>
+            <input
+              type="text"
+              placeholder="1234567890"
+              {...registerPhone("phone")}
+              className="w-full border rounded p-2"
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+            {phoneErrors.phone && (
+              <p className="text-red-500 text-sm">{phoneErrors.phone.message}</p>
+            )}
+          </div>
+
+          <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded">
+            Send OTP
+          </button>
+        </form>
+      )}
+
+      {step === 2 && (
+        <form onSubmit={handleOtpSubmit(onVerifyOtp)} className="space-y-4">
+          <h2 className="text-xl font-semibold">🔐 Enter OTP</h2>
+          <p className="text-sm text-gray-600">Sent to {fullPhone}</p>
+
+          <div>
+            <input
+              type="text"
+              placeholder="Enter 6-digit OTP"
+              {...registerOtp("otp")}
+              className="w-full border rounded p-2"
+            />
+            {otpErrors.otp && (
+              <p className="text-red-500 text-sm">{otpErrors.otp.message}</p>
+            )}
+          </div>
+
+          <button type="submit" className="w-full bg-green-600 text-white py-2 rounded">
+            Verify OTP
+          </button>
+        </form>
+      )}
     </div>
+   </div>
   );
 }
